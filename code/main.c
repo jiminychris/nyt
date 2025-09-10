@@ -12,7 +12,8 @@
 #define MAX_WORDS ((PUZZLE_HEIGHT * PUZZLE_WIDTH) / MIN_LENGTH)
 #define SPELLING_BEE_LETTER_BANK_SIZE 7
 
-#define PushStruct(Arena, Type) (struct Type *)ArenaPush(Arena, sizeof(struct Type))
+#define PushType(Arena, Type) ((Type *)ArenaPush(Arena, sizeof(Type)))
+#define PushStruct(Arena, Type) ((struct Type *)ArenaPush(Arena, sizeof(struct Type)))
 
 char Offsets[] = {
     -STRIDE - 1,
@@ -487,15 +488,17 @@ int main(int ArgCount, char *Args[])
             return 1;
         }
         char SortedLetterBank[SPELLING_BEE_LETTER_BANK_SIZE + 1];
-        char LetterHistogram[26] = {0};
-        char DuplicateColors[26] = {0};
-        char Colors[] = { 32, 33, 34, };
+        char LetterHistogram[256] = {0};
+        char DuplicateColors[256] = {0};
+        char Colors[] = { 92, 93, 94, };
         int LetterBankSize = 0;
         char Char;
 
-        char *LetterBankAt = LetterBank;
+        char *Source = LetterBank;
+        char *UpcasedLetterBank = ArenaPush(&Arena, 0);
         char NonLetterCount = 0;
-        while ((Char = *LetterBankAt))
+        char ColorIndex = 0;
+        while ((Char = *Source++))
         {
             if ('a' <= Char && Char <= 'z')
             {
@@ -503,87 +506,83 @@ int main(int ArgCount, char *Args[])
             }
             if ('A' <= Char && Char <= 'Z')
             {
-                *LetterBankAt = Char;
+                if (LetterBankSize < SPELLING_BEE_LETTER_BANK_SIZE)
+                {
+                    char Count = LetterHistogram[Char] + 1;
+                    LetterHistogram[Char] = Count;
+                    if (Count == 2)
+                    {
+                        DuplicateColors[Char] = Colors[ColorIndex++];
+                    }
+                }
             }
             else
             {
                 NonLetterCount++;
             }
-            LetterBankAt++;
+            *PushType(&Arena, char) = Char;
             LetterBankSize++;
         }
+        *PushType(&Arena, char) = 0;
 
-        if (NonLetterCount)
+        int MissingChars = SPELLING_BEE_LETTER_BANK_SIZE - LetterBankSize;
+        if (NonLetterCount || MissingChars || ColorIndex)
         {
             printf("Spelling Bee requires a letter bank with %d distinct letters (", SPELLING_BEE_LETTER_BANK_SIZE);
-            LetterBankAt = LetterBank;
-            while ((Char = *LetterBankAt++))
+            char *Upcase = UpcasedLetterBank;
+            Source = LetterBank;
+            char ValidLength = SPELLING_BEE_LETTER_BANK_SIZE < LetterBankSize ? SPELLING_BEE_LETTER_BANK_SIZE : LetterBankSize;
+            while (ValidLength--)
             {
-                char IsLetter = 'A' <= Char && Char <= 'Z';
-                printf("\033[%dm%c", IsLetter ? 0 : 31, Char);
+                Char = *Upcase++;
+                int Color1, Color2;
+                if ('A' <= Char && Char <= 'Z')
+                {
+                    Color1 = 0;
+                    Color2 = DuplicateColors[Char];
+                }
+                else
+                {
+                    Color1 = 97;
+                    Color2 = 105;
+                }
+                printf("\033[%d;%dm%c", Color1, Color2, *Source++);
+            }
+            if (MissingChars)
+            {
+                printf("\033[90;107m");
+                while (0 < MissingChars)
+                {
+                    putchar('?');
+                    MissingChars--;
+                }
+                while (MissingChars < 0)
+                {
+                    putchar(*Source++);
+                    MissingChars++;
+                }
             }
             puts("\033[0m)\n");
             return 1;
         }
 
-        if (LetterBankSize != SPELLING_BEE_LETTER_BANK_SIZE)
-        {
-            printf("Spelling Bee requires a letter bank with %d distinct letters, not %d (%.7s\033[31m", SPELLING_BEE_LETTER_BANK_SIZE, LetterBankSize, LetterBank);
-            if (LetterBankSize < SPELLING_BEE_LETTER_BANK_SIZE)
-            {
-                printf("%.*s", SPELLING_BEE_LETTER_BANK_SIZE - LetterBankSize, "???????");
-            }
-            else if (SPELLING_BEE_LETTER_BANK_SIZE < LetterBankSize)
-            {
-                printf("%s", LetterBank + SPELLING_BEE_LETTER_BANK_SIZE);
-            }
-            puts("\033[0m)\n");
-            return 1;
-        }
-
-        LetterBankAt = LetterBank;
-        char ColorIndex = 0;
-        while ((Char = *LetterBankAt++))
-        {
-            int Index = Char - 'A';
-            char Count = LetterHistogram[Index] + 1;
-            LetterHistogram[Index] = Count;
-            if (1 < Count)
-            {
-                DuplicateColors[Index] = Colors[ColorIndex++];
-            }
-        }
-
-        if (ColorIndex)
-        {
-            printf("Spelling Bee requires a letter bank with %d distinct letters (", SPELLING_BEE_LETTER_BANK_SIZE);
-            LetterBankAt = LetterBank;
-            while ((Char = *LetterBankAt++))
-            {
-                printf("\033[%dm%c", DuplicateColors[Char - 'A'], Char);
-            }
-            puts("\033[0m)\n");
-            return 1;
-        }
-
-        LetterBankAt = SortedLetterBank;
-        char CoreChar = *LetterBank;
+        char *Dest = SortedLetterBank;
+        Source = UpcasedLetterBank;
+        char CoreChar = *UpcasedLetterBank;
         int CoreIndex = 0;
+        int CoreMask = 0;
         for (int HistogramIndex = 0; HistogramIndex < sizeof(LetterHistogram); ++HistogramIndex)
         {
-            Char = 'A' + HistogramIndex;
-            char Count = LetterHistogram[HistogramIndex];
-            if (Count == 1)
+            if (LetterHistogram[HistogramIndex])
             {
-                if (Char == CoreChar)
+                if (HistogramIndex == CoreChar)
                 {
-                    CoreIndex = LetterBankAt - SortedLetterBank;
+                    CoreMask = 1 << (Source - UpcasedLetterBank);
                 }
-                *LetterBankAt++ = Char;
+                *Dest++ = *Source++;
             }
         }
-        int CoreMask = 1 << CoreIndex;
-        *LetterBankAt = 0;
+        *Dest = 0;
         char Buffer[256];
         struct spelling_bee_solution_builder SolutionBuilder = {0};
         SolutionBuilder.StringArena.Size = 16*1024;
