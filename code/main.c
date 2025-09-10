@@ -489,11 +489,12 @@ int main(int ArgCount, char *Args[])
         char SortedLetterBank[SPELLING_BEE_LETTER_BANK_SIZE + 1];
         char LetterHistogram[26] = {0};
         char DuplicateColors[26] = {0};
-        char Colors[] = { 31, 32, 33, };
+        char Colors[] = { 32, 33, 34, };
         int LetterBankSize = 0;
         char Char;
 
         char *LetterBankAt = LetterBank;
+        char NonLetterCount = 0;
         while ((Char = *LetterBankAt))
         {
             if ('a' <= Char && Char <= 'z')
@@ -502,19 +503,41 @@ int main(int ArgCount, char *Args[])
             }
             if ('A' <= Char && Char <= 'Z')
             {
-                *LetterBankAt++ = Char;
+                *LetterBankAt = Char;
             }
             else
             {
-                printf("Spelling Bee requires a letter bank with %d distinct letters (%s)\n", SPELLING_BEE_LETTER_BANK_SIZE, LetterBank);
-                return 1;
+                NonLetterCount++;
             }
+            LetterBankAt++;
             LetterBankSize++;
+        }
+
+        if (NonLetterCount)
+        {
+            printf("Spelling Bee requires a letter bank with %d distinct letters (", SPELLING_BEE_LETTER_BANK_SIZE);
+            LetterBankAt = LetterBank;
+            while ((Char = *LetterBankAt++))
+            {
+                char IsLetter = 'A' <= Char && Char <= 'Z';
+                printf("\033[%dm%c", IsLetter ? 0 : 31, Char);
+            }
+            puts("\033[0m)\n");
+            return 1;
         }
 
         if (LetterBankSize != SPELLING_BEE_LETTER_BANK_SIZE)
         {
-            printf("Spelling Bee requires a letter bank with %d distinct letters, not %d (%s)\n", SPELLING_BEE_LETTER_BANK_SIZE, LetterBankSize, LetterBank);
+            printf("Spelling Bee requires a letter bank with %d distinct letters, not %d (%.7s\033[31m", SPELLING_BEE_LETTER_BANK_SIZE, LetterBankSize, LetterBank);
+            if (LetterBankSize < SPELLING_BEE_LETTER_BANK_SIZE)
+            {
+                printf("%.*s", SPELLING_BEE_LETTER_BANK_SIZE - LetterBankSize, "???????");
+            }
+            else if (SPELLING_BEE_LETTER_BANK_SIZE < LetterBankSize)
+            {
+                printf("%s", LetterBank + SPELLING_BEE_LETTER_BANK_SIZE);
+            }
+            puts("\033[0m)\n");
             return 1;
         }
 
