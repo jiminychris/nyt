@@ -567,7 +567,6 @@ int main(int ArgCount, char *Args[])
         }
 
         char *Dest = SortedLetterBank;
-        Source = UpcasedLetterBank;
         char CoreChar = *UpcasedLetterBank;
         int CoreIndex = 0;
         int CoreMask = 0;
@@ -577,9 +576,9 @@ int main(int ArgCount, char *Args[])
             {
                 if (HistogramIndex == CoreChar)
                 {
-                    CoreMask = 1 << (Source - UpcasedLetterBank);
+                    CoreMask = 1 << (Dest - SortedLetterBank);
                 }
-                *Dest++ = *Source++;
+                *Dest++ = HistogramIndex;
             }
         }
         *Dest = 0;
