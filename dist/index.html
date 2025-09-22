@@ -1,0 +1,85 @@
+<html>
+  <head></head>
+  <body>
+    <div id="container"></div>
+    <script>
+      function encode(memory, string) {
+          for (let i = 0; i < string.length; ++i) {
+              memory[i] = string.charCodeAt(i);
+          }
+          memory[string.length] = 0;
+      }
+      function decodeN(dataView, cursor, length) {
+          let result = "";
+
+          while (length--)
+          {
+              result += String.fromCharCode(dataView.getUint8(cursor++));
+          }
+          return result;
+      }
+      function decode(dataView, cursor) {
+          let result = "";
+
+          while (dataView.getUint8(cursor) !== 0)
+          {
+              result += String.fromCharCode(dataView.getUint8(cursor++));
+          }
+          return result;
+      }
+      (async() => {
+          const size = 1024*1024*1024;
+          const pages = size / (64*1024)
+          const memory = new WebAssembly.Memory({ initial: pages, maximum: pages });
+          const { instance } = await WebAssembly.instantiateStreaming(fetch("bee.wasm"), {
+              env: {
+                  memory,
+              },
+          });
+          const lexResponse = await fetch("scrabble.txt");
+          const lexArrayBuffer = await lexResponse.arrayBuffer();
+          const heapBase = instance.exports.__heap_base;
+          let allocated = heapBase;
+          const lexMemory = new Uint8Array(memory.buffer, allocated, lexArrayBuffer.byteLength + 1);
+          allocated += lexMemory.length;
+          const sortedLetterBank = new Uint8Array(memory.buffer, allocated, 8);
+          allocated += sortedLetterBank.length;
+
+          lexMemory.set(new Uint8Array(lexArrayBuffer));
+          lexMemory.set([0], lexArrayBuffer.byteLength);
+          const coreMask = 1 << 2;
+          
+          encode(sortedLetterBank, "ACFINRT");
+          const dataView = new DataView(memory.buffer);
+          const solutionBuilderPointer = instance.exports.SolveSpellingBee(allocated, size - allocated, lexMemory.byteOffset, sortedLetterBank.byteOffset, coreMask);
+
+          const solutionCount = dataView.getUint32(solutionBuilderPointer + 0, true);
+          let solution = dataView.getUint32(solutionBuilderPointer + 24, true);
+          const ul = document.createElement("ul");
+          for (let solutionIndex = 0; solutionIndex < solutionCount; ++solutionIndex) {
+              const solutionLength = dataView.getUint8(solution + 0);
+              const solutionWord = dataView.getUint32(solution + 1, true);
+              const solutionMask = dataView.getUint8(solution + 5);
+              solution += 6;
+
+              const isPangram = (solutionMask & 0x7F) == 0x7F;
+              const isPerfect = isPangram && solutionLength == 7;
+              const word = decodeN(dataView, solutionWord, solutionLength);
+
+              const li = document.createElement("li");
+              li.innerText = word;
+              if (isPerfect)
+              {
+                  li.style.color = "green";
+              }
+              else if (isPangram)
+              {
+                  li.style.color = "red";
+              }
+              ul.append(li);
+          }
+          container.append(ul);
+      })();
+    </script>
+  </body>
+</html>
