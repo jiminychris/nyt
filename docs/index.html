@@ -1,7 +1,92 @@
 <html>
-  <head></head>
+  <head>
+    <style>
+      .center .cell-fill{
+          fill: #f7da21; /* Example background */
+      }
+      .outer .cell-fill{
+          fill: #e7e7e7; /* Example background */
+      }
+      .hive-cell:nth-child(1) {
+          transform: translate(0, 0);
+      }
+      .hive-cell:nth-child(2) {
+          transform: translate(-75%, -50%);
+      }
+      .hive-cell:nth-child(3) {
+          transform: translate(0, -100%);
+      }
+      .hive-cell:nth-child(4) {
+          transform: translate(75%, -50%);
+      }
+      .hive-cell:nth-child(5) {
+          transform: translate(75%, 50%);
+      }
+      .hive-cell:nth-child(6) {
+          transform: translate(0, 100%);
+      }
+      .hive-cell:nth-child(7) {
+          transform: translate(-75%, 50%);
+      }
+      .hive-cell {
+          position: absolute;
+          cursor: pointer;
+      }
+      .highlight {
+          animation: fade 2s ease-out;
+      }
+      @keyframes fade {
+          0% {
+              stroke: red;
+          }
+          100% {
+              stroke: white;
+          }
+      }
+      .selected {
+          stroke: green;
+      }
+      .hive {
+          position: relative;
+          width: 10%;
+          height: 20%;
+          margin: 10%;
+      }
+    </style>
+  </head>
   <body>
-    <div id="container"></div>
+    <div class="hive">
+      <svg class="hive-cell center" viewBox="0 0 120 103.92304845413263">
+        <polygon class="cell-fill" points="7.5,51.96152422706631 33.75,7.5 86.25,7.5 112.5,51.96152422706631 86.25,96.42304845413263 33.75,96.42304845413263" stroke="white" stroke-width="7.5"></polygon>
+        <text class="cell-letter" x="50%" y="50%" dy="0.35em" data-testid="cell-letter">A</text>
+      </svg>
+      <svg class="hive-cell outer" viewBox="0 0 120 103.92304845413263">
+        <polygon class="cell-fill" points="7.5,51.96152422706631 33.75,7.5 86.25,7.5 112.5,51.96152422706631 86.25,96.42304845413263 33.75,96.42304845413263" stroke="white" stroke-width="7.5"></polygon>
+        <text class="cell-letter" x="50%" y="50%" dy="0.35em" data-testid="cell-letter">B</text>
+      </svg>
+      <svg class="hive-cell outer" viewBox="0 0 120 103.92304845413263">
+        <polygon class="cell-fill" points="7.5,51.96152422706631 33.75,7.5 86.25,7.5 112.5,51.96152422706631 86.25,96.42304845413263 33.75,96.42304845413263" stroke="white" stroke-width="7.5"></polygon>
+        <text class="cell-letter" x="50%" y="50%" dy="0.35em" data-testid="cell-letter">C</text>
+      </svg>
+      <svg class="hive-cell outer" viewBox="0 0 120 103.92304845413263">
+        <polygon class="cell-fill" points="7.5,51.96152422706631 33.75,7.5 86.25,7.5 112.5,51.96152422706631 86.25,96.42304845413263 33.75,96.42304845413263" stroke="white" stroke-width="7.5"></polygon>
+        <text class="cell-letter" x="50%" y="50%" dy="0.35em" data-testid="cell-letter">D</text>
+      </svg>
+      <svg class="hive-cell outer" viewBox="0 0 120 103.92304845413263">
+        <polygon class="cell-fill" points="7.5,51.96152422706631 33.75,7.5 86.25,7.5 112.5,51.96152422706631 86.25,96.42304845413263 33.75,96.42304845413263" stroke="white" stroke-width="7.5"></polygon>
+        <text class="cell-letter" x="50%" y="50%" dy="0.35em" data-testid="cell-letter">E</text>
+      </svg>
+      <svg class="hive-cell outer" viewBox="0 0 120 103.92304845413263">
+        <polygon class="cell-fill" points="7.5,51.96152422706631 33.75,7.5 86.25,7.5 112.5,51.96152422706631 86.25,96.42304845413263 33.75,96.42304845413263" stroke="white" stroke-width="7.5"></polygon>
+        <text class="cell-letter" x="50%" y="50%" dy="0.35em" data-testid="cell-letter">F</text>
+      </svg>
+      <svg class="hive-cell outer" viewBox="0 0 120 103.92304845413263">
+        <polygon class="cell-fill" points="7.5,51.96152422706631 33.75,7.5 86.25,7.5 112.5,51.96152422706631 86.25,96.42304845413263 33.75,96.42304845413263" stroke="white" stroke-width="7.5"></polygon>
+        <text class="cell-letter" x="50%" y="50%" dy="0.35em" data-testid="cell-letter">G</text>
+      </svg>
+    </div>
+    <button id="btnSolve">Solve</button>
+    <ul id="solutions"></ul>
     <script>
       function encode(memory, string) {
           for (let i = 0; i < string.length; ++i) {
@@ -28,57 +113,117 @@
           return result;
       }
       (async() => {
-          const size = 1024*1024*1024;
-          const pages = size / (64*1024)
-          const memory = new WebAssembly.Memory({ initial: pages, maximum: pages });
-          const { instance } = await WebAssembly.instantiateStreaming(fetch("bee.wasm"), {
-              env: {
-                  memory,
-              },
-          });
-          const lexResponse = await fetch("scrabble.txt");
-          const lexArrayBuffer = await lexResponse.arrayBuffer();
-          const heapBase = instance.exports.__heap_base;
-          let allocated = heapBase;
-          const lexMemory = new Uint8Array(memory.buffer, allocated, lexArrayBuffer.byteLength + 1);
-          allocated += lexMemory.length;
-          const sortedLetterBank = new Uint8Array(memory.buffer, allocated, 8);
-          allocated += sortedLetterBank.length;
-
-          lexMemory.set(new Uint8Array(lexArrayBuffer));
-          lexMemory.set([0], lexArrayBuffer.byteLength);
-          const coreMask = 1 << 2;
-          
-          encode(sortedLetterBank, "ACFINRT");
-          const dataView = new DataView(memory.buffer);
-          const solutionBuilderPointer = instance.exports.SolveSpellingBee(allocated, size - allocated, lexMemory.byteOffset, sortedLetterBank.byteOffset, coreMask);
-
-          const solutionCount = dataView.getUint32(solutionBuilderPointer + 0, true);
-          let solution = dataView.getUint32(solutionBuilderPointer + 24, true);
-          const ul = document.createElement("ul");
-          for (let solutionIndex = 0; solutionIndex < solutionCount; ++solutionIndex) {
-              const solutionLength = dataView.getUint8(solution + 0);
-              const solutionWord = dataView.getUint32(solution + 1, true);
-              const solutionMask = dataView.getUint8(solution + 5);
-              solution += 6;
-
-              const isPangram = (solutionMask & 0x7F) == 0x7F;
-              const isPerfect = isPangram && solutionLength == 7;
-              const word = decodeN(dataView, solutionWord, solutionLength);
-
-              const li = document.createElement("li");
-              li.innerText = word;
-              if (isPerfect)
-              {
-                  li.style.color = "green";
-              }
-              else if (isPangram)
-              {
-                  li.style.color = "red";
-              }
-              ul.append(li);
+          const cells = document.getElementsByClassName("cell-fill");
+          for (const cell of cells)
+          {
+              cell.onclick = () => {
+                  for (const it of cells)
+                  {
+                      if (it === cell)
+                      {
+                          it.classList.remove("highlight");
+                          it.classList.toggle("selected");
+                      }
+                      else
+                      {
+                          it.classList.remove("selected");
+                      }
+                  }
+              };
           }
-          container.append(ul);
+          const asciiA = "A".charCodeAt(0);
+          const asciiZ = "Z".charCodeAt(0);
+          addEventListener("keydown", (event) => {
+              const key = event.key;
+              if (key.length === 1) {
+                  const upper = key.toUpperCase();
+                  const ascii = upper.charCodeAt(0);
+                  if (asciiA <= ascii && ascii <= asciiZ) {
+                      let selected;
+                      let duplicate;
+                      for (const cell of cells) {
+                          if (cell.classList.contains("selected")) {
+                              selected = cell;
+                          }
+                          if (cell.nextElementSibling.textContent === upper) {
+                              duplicate = cell;
+                          }
+                      }
+                      if (duplicate !== selected) {
+                          if (duplicate) {
+                              for (const cell of cells) {
+                                  cell.classList.remove("highlight");
+                              }
+                              setTimeout(() => duplicate.classList.add("highlight"), 1);
+                          } else if (selected) {
+                              selected.nextElementSibling.textContent = upper;
+                          }
+                      }
+                  }
+              }
+          });
+          
+          btnSolve.onclick = async () => {
+              const letterBank = [];
+              for (const cell of cells) {
+                  letterBank.push(cell.nextElementSibling.textContent);
+              }
+              const core = letterBank[0];
+              letterBank.sort();
+              const coreMask = 1 << letterBank.indexOf(core);
+              console.log(letterBank, coreMask);
+              
+              const size = 1024*1024*1024;
+              const pages = size / (64*1024)
+              const memory = new WebAssembly.Memory({ initial: pages, maximum: pages });
+              const { instance } = await WebAssembly.instantiateStreaming(fetch("bee.wasm"), {
+                  env: {
+                      memory,
+                  },
+              });
+              const lexResponse = await fetch("scrabble.txt");
+              const lexArrayBuffer = await lexResponse.arrayBuffer();
+              const heapBase = instance.exports.__heap_base;
+              let allocated = heapBase;
+              const lexMemory = new Uint8Array(memory.buffer, allocated, lexArrayBuffer.byteLength + 1);
+              allocated += lexMemory.length;
+              const sortedLetterBank = new Uint8Array(memory.buffer, allocated, 8);
+              allocated += sortedLetterBank.length;
+
+              lexMemory.set(new Uint8Array(lexArrayBuffer));
+              lexMemory.set([0], lexArrayBuffer.byteLength);
+
+              encode(sortedLetterBank, letterBank.join(""));
+              const dataView = new DataView(memory.buffer);
+              const solutionBuilderPointer = instance.exports.SolveSpellingBee(allocated, size - allocated, lexMemory.byteOffset, sortedLetterBank.byteOffset, coreMask);
+
+              const solutionCount = dataView.getUint32(solutionBuilderPointer + 0, true);
+              let solution = dataView.getUint32(solutionBuilderPointer + 24, true);
+              const words = [];
+              for (let solutionIndex = 0; solutionIndex < solutionCount; ++solutionIndex) {
+                  const solutionLength = dataView.getUint8(solution + 0);
+                  const solutionWord = dataView.getUint32(solution + 1, true);
+                  const solutionMask = dataView.getUint8(solution + 5);
+                  solution += 6;
+
+                  const isPangram = (solutionMask & 0x7F) == 0x7F;
+                  const isPerfect = isPangram && solutionLength == 7;
+                  const word = decodeN(dataView, solutionWord, solutionLength);
+
+                  const li = document.createElement("li");
+                  li.innerText = word;
+                  if (isPerfect)
+                  {
+                      li.style.color = "green";
+                  }
+                  else if (isPangram)
+                  {
+                      li.style.color = "red";
+                  }
+                  words.push(li);
+              }
+              solutions.replaceChildren(...words);
+          };
       })();
     </script>
   </body>
