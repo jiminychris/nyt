@@ -114,6 +114,31 @@
       }
       (async() => {
           const cells = document.getElementsByClassName("cell-fill");
+          const asciiA = "A".charCodeAt(0);
+          const asciiZ = "Z".charCodeAt(0);
+          function loadFragment() {
+              let hash = window.location.hash;
+              let isHashValid = hash.length === 8;
+              const hashLetterSet = new Set();
+              for (let hashIndex = 1; isHashValid && hashIndex < hash.length; ++hashIndex)
+              {
+                  const ascii = hash[hashIndex].toUpperCase().charCodeAt(0);
+                  isHashValid &&= (!hashLetterSet.has(ascii) && asciiA <= ascii && ascii <= asciiZ);
+                  hashLetterSet.add(ascii);
+              }
+              if (isHashValid)
+              {
+                  let hashIndex = 1;
+                  for (const cell of cells)
+                  {
+                      cell.nextElementSibling.textContent = hash[hashIndex++].toUpperCase();
+                  }
+              }
+          }
+          loadFragment();
+          addEventListener("hashchange", (event) => {
+              loadFragment();
+          });
           for (const cell of cells)
           {
               cell.onclick = () => {
@@ -131,8 +156,6 @@
                   }
               };
           }
-          const asciiA = "A".charCodeAt(0);
-          const asciiZ = "Z".charCodeAt(0);
           addEventListener("keydown", (event) => {
               const key = event.key;
               if (key.length === 1) {
